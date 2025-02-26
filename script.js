@@ -11,8 +11,8 @@ const tabPanes = document.querySelectorAll('.tab-pane');
 const copyBtns = document.querySelectorAll('.copy-btn');
 
 // API配置
-const API_URL = '/api/coze'; // 使用本地代理服务器
-const BOT_ID = '7475718510476509221';
+const API_URL = "/api/coze"; // 使用相对路径，会自动适应部署环境
+const BOT_ID = "bot_8e2f0e4c-3d5f-4b7e-9e1c-e5d6d9f4b6a8";
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -81,6 +81,10 @@ async function analyzeVideo(videoUrl) {
     };
 
     try {
+        // 显示加载动画
+        loadingSection.style.display = 'block';
+        resultSection.style.display = 'none';
+        
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
@@ -117,7 +121,31 @@ async function analyzeVideo(videoUrl) {
         return parseApiResponse(result);
     } catch (error) {
         console.error('API请求错误:', error);
+        // 隐藏加载动画
+        loadingSection.style.display = 'none';
+        
+        // 显示错误信息
+        resultSection.style.display = 'block';
+        originalContentBox.innerHTML = `<p class="error-message">
+            <strong>分析失败:</strong> ${error.message}<br>
+            <small>请检查网络连接并重试，或者尝试其他抖音视频链接。</small>
+        </p>`;
+        rewrittenContentBox.innerHTML = `<p class="error-message">
+            <strong>无法生成改写建议</strong><br>
+            <small>由于分析失败，无法生成改写建议。</small>
+        </p>`;
+        modelThinkingBox.innerHTML = `<p class="error-message">
+            <strong>错误详情:</strong><br>
+            ${error.stack || error}
+        </p>`;
+        
+        // 切换到错误详情标签
+        switchTab('modelThinking');
+        
         throw error;
+    } finally {
+        // 确保无论如何都隐藏加载动画
+        loadingSection.style.display = 'none';
     }
 }
 
