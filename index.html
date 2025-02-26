@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抖音文案提取与改写工具</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fab fa-tiktok"></i> 抖音文案提取与改写工具</h1>
+            <p class="subtitle">输入抖音视频链接，一键提取文案并获取专业改写建议</p>
+        </header>
+
+        <main>
+            <section class="input-section">
+                <div class="input-container">
+                    <input type="text" id="videoUrl" placeholder="请粘贴抖音视频链接...">
+                    <button id="analyzeBtn"><i class="fas fa-magic"></i> 分析</button>
+                </div>
+                <div class="tips">
+                    <p><i class="fas fa-lightbulb"></i> 提示：直接从抖音APP复制分享链接（以https://v.douyin.com/开头）</p>
+                    <p><i class="fas fa-exclamation-circle"></i> 注意：分析过程可能需要10-20秒，请耐心等待</p>
+                </div>
+            </section>
+
+            <section class="loading-section" id="loadingSection">
+                <div class="loader"></div>
+                <p>正在分析视频内容，请稍候...</p>
+            </section>
+
+            <section class="result-section" id="resultSection">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="originalContent">原始文案</button>
+                    <button class="tab-btn" data-tab="rewrittenContent">改写建议</button>
+                    <button class="tab-btn" data-tab="modelThinking">模型思考过程</button>
+                </div>
+                
+                <div class="tab-content">
+                    <div class="tab-pane active" id="originalContent">
+                        <h3>提取的原始文案</h3>
+                        <div class="content-box" id="originalContentBox">
+                            <p class="placeholder-text">分析后将显示原始文案...</p>
+                        </div>
+                        <button class="copy-btn" data-target="originalContentBox"><i class="fas fa-copy"></i> 复制文案</button>
+                    </div>
+                    
+                    <div class="tab-pane" id="rewrittenContent">
+                        <h3>文案改写建议</h3>
+                        <div class="content-box" id="rewrittenContentBox">
+                            <p class="placeholder-text">分析后将显示改写建议...</p>
+                        </div>
+                        <button class="copy-btn" data-target="rewrittenContentBox"><i class="fas fa-copy"></i> 复制改写</button>
+                    </div>
+                    
+                    <div class="tab-pane" id="modelThinking">
+                        <h3>模型思考过程</h3>
+                        <div class="content-box" id="modelThinkingBox">
+                            <p class="placeholder-text">分析后将显示模型思考过程...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p> 2025 抖音文案提取与改写工具 | 使用 <a href="https://www.coze.cn" target="_blank">Coze API</a> 提供支持</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

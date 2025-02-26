@@ -1,0 +1,30 @@
+{
+  "name": "douyin-content-extractor",
+  "version": "1.0.0",
+  "description": "抖音文案提取与改写工具",
+  "main": "proxy-server.js",
+  "scripts": {
+    "start": "node proxy-server.js",
+    "dev": "nodemon proxy-server.js",
+    "simple": "node server.js"
+  },
+  "keywords": [
+    "douyin",
+    "content",
+    "extraction",
+    "rewrite",
+    "coze",
+    "api"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}
