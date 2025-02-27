@@ -11,7 +11,9 @@ const tabPanes = document.querySelectorAll('.tab-pane');
 const copyBtns = document.querySelectorAll('.copy-btn');
 
 // API配置
-const API_URL = "/api/coze"; // 使用相对路径，会自动适应部署环境
+const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? '/api/coze' // 本地开发环境
+    : '/api/coze'; // Vercel或其他生产环境
 const BOT_ID = "7475718510476509221";
 const DEBUG_MODE = true; // 调试模式开关
 

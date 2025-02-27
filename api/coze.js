@@ -7,6 +7,13 @@ const API_KEY = process.env.COZE_API_KEY || 'pat_vnJOJjNCzgkFCfuBxTiqeA69DWJSxNg
 // 解析请求体
 const parseBody = (req) => {
   return new Promise((resolve) => {
+    // 如果请求体已经被解析（Vercel环境中可能会自动解析）
+    if (req.body) {
+      console.log('请求体已被自动解析');
+      resolve(req.body);
+      return;
+    }
+
     let body = '';
     req.on('data', (chunk) => {
       body += chunk.toString();
@@ -43,11 +50,17 @@ module.exports = async (req, res) => {
   try {
     // 解析请求体
     const body = await parseBody(req);
-    console.log('收到API请求:', {
+    console.log('收到API请求:', JSON.stringify({
       botId: body.bot_id,
       userId: body.user_id,
-      stream: body.stream
-    });
+      stream: body.stream,
+      messages: body.messages ? body.messages.length : 0
+    }));
+    
+    if (!body.bot_id) {
+      console.error('请求缺少bot_id参数');
+      return res.status(400).json({ error: '缺少必要参数bot_id' });
+    }
     
     // 准备请求选项
     const options = {
@@ -72,10 +85,10 @@ module.exports = async (req, res) => {
 
       console.log(`收到来自Coze API的响应: ${proxyRes.statusCode}`);
       
-      // 收集响应数据以便调试
+      // 收集响应数据
       let responseData = '';
       
-      // 流式传输响应
+      // 处理响应数据
       proxyRes.on('data', (chunk) => {
         responseData += chunk.toString();
         res.write(chunk);
@@ -83,9 +96,20 @@ module.exports = async (req, res) => {
       
       proxyRes.on('end', () => {
         console.log(`完整响应长度: ${responseData.length}`);
-        // 记录响应的前100个字符用于调试
+        // 记录响应的前200个字符用于调试
         if (responseData.length > 0) {
-          console.log(`响应前100个字符: ${responseData.substring(0, 100)}`);
+          console.log(`响应前200个字符: ${responseData.substring(0, 200)}`);
+          
+          // 尝试解析响应，检查是否有错误信息
+          try {
+            const jsonResponse = JSON.parse(responseData);
+            if (jsonResponse.error) {
+              console.error('API返回错误:', jsonResponse.error);
+            }
+          } catch (e) {
+            // 如果不是JSON格式，可能是流式响应
+            console.log('响应不是JSON格式，可能是流式响应');
+          }
         }
         res.end();
       });
@@ -103,6 +127,7 @@ module.exports = async (req, res) => {
 
     // 发送请求体
     const requestBody = JSON.stringify(body);
+    console.log('请求体长度:', requestBody.length);
     proxyReq.write(requestBody);
     proxyReq.end();
     
