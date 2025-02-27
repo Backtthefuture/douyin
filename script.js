@@ -166,6 +166,27 @@ async function analyzeVideo(videoUrl) {
 function parseApiResponse(responseText) {
     console.log("开始解析API响应...");
     
+    // 检查是否为空响应
+    if (!responseText || responseText.trim() === '') {
+        console.error("收到空响应");
+        return {
+            thinking: '收到空响应，请检查API连接',
+            original: '未找到原始文案',
+            rewritten: '未找到改写建议'
+        };
+    }
+    
+    // 尝试直接解析整个响应（适用于Vercel环境可能的非流式响应）
+    try {
+        const directJson = JSON.parse(responseText);
+        if (directJson && directJson.content) {
+            console.log("直接解析JSON成功，内容长度:", directJson.content.length);
+            return extractContentParts(directJson.content, directJson.reasoning_content || '');
+        }
+    } catch (e) {
+        console.log("直接JSON解析失败，尝试流式响应解析");
+    }
+    
     // 分离响应中的数据行
     const dataLines = responseText.split('\n').filter(line => line.trim().startsWith('data:'));
     console.log(`找到 ${dataLines.length} 行数据`);
@@ -199,7 +220,8 @@ function parseApiResponse(responseText) {
                 // 如果是完整的最终回答
                 if (data.content && (
                     data.content.includes('原视频文案') && data.content.includes('爆款视频文案') ||
-                    data.content.includes('原始文案') && data.content.includes('改写建议')
+                    data.content.includes('原始文案') && data.content.includes('改写建议') ||
+                    data.content.includes('原文') && data.content.includes('改写')
                 )) {
                     fullResponse = data.content;
                     console.log("找到完整回答，长度:", fullResponse.length);
@@ -207,67 +229,195 @@ function parseApiResponse(responseText) {
             }
         } catch (e) {
             console.warn(`解析响应行 #${index} 失败:`, e);
-            console.warn("问题行内容:", line.substring(0, 100) + "...");
+            if (line.length > 100) {
+                console.warn("问题行内容:", line.substring(0, 100) + "...");
+            } else {
+                console.warn("问题行内容:", line);
+            }
         }
     });
     
     // 如果找到了完整回答，使用它；否则使用累积的内容
-    const finalContent = fullResponse || content;
+    const finalContent = fullResponse || content || responseText;
     console.log("最终内容长度:", finalContent.length);
+    
+    // 如果没有通过常规方式找到内容，尝试直接从原始响应中提取
+    if (!fullResponse && !content && responseText.length > 0) {
+        console.log("尝试从原始响应中直接提取内容");
+        // 尝试查找常见的内容标记
+        if (responseText.includes('原视频文案') || 
+            responseText.includes('原始文案') || 
+            responseText.includes('原文') ||
+            responseText.includes('爆款视频文案') ||
+            responseText.includes('改写建议') ||
+            responseText.includes('改写')) {
+            console.log("在原始响应中找到内容标记，直接使用原始响应");
+            return extractContentParts(responseText, '');
+        }
+    }
     
     // 提取内容部分
     return extractContentParts(finalContent, reasoning);
 }
 
-// 提取内容部分
-function extractContentParts(fullText, reasoning) {
+// 从API响应中提取原始文案和改写建议
+function extractContentParts(content, thinking) {
     console.log("提取内容部分...");
     
-    // 尝试从完整响应中提取原始文案和改写建议
+    // 记录原始内容的前200个字符，用于调试
+    if (content && content.length > 0) {
+        const previewContent = content.substring(0, 200);
+        console.log(`原始内容前200字符: ${previewContent}`);
+    } else {
+        console.warn("内容为空，无法提取");
+        return {
+            thinking: thinking || '未找到思考过程',
+            original: '未找到原始文案',
+            rewritten: '未找到改写建议'
+        };
+    }
+    
+    // 定义可能的分隔标记
+    const originalMarkers = [
+        '原视频文案如下：', '原视频文案:', '原视频文案如下:', 
+        '原始文案：', '原始文案:', 
+        '原文：', '原文:', 
+        '原始视频文案：', '原始视频文案:',
+        '以下是原始文案：', '以下是原始文案:',
+        '抖音视频原始文案：', '抖音视频原始文案:'
+    ];
+    
+    const rewrittenMarkers = [
+        '爆款视频文案：', '爆款视频文案:', 
+        '改写建议：', '改写建议:', 
+        '改写文案：', '改写文案:', 
+        '改写后的文案：', '改写后的文案:',
+        '以下是改写建议：', '以下是改写建议:',
+        '爆款化建议：', '爆款化建议:',
+        '爆款改写：', '爆款改写:'
+    ];
+    
     let original = '';
     let rewritten = '';
     
-    // 提取原始文案 - 支持多种可能的格式
-    const originalPatterns = [
-        /原视频文案如下：\s*([\s\S]*?)(?=\n\n爆款视频文案|$)/,
-        /原始文案[：:]\s*([\s\S]*?)(?=\n\n改写建议|$)/,
-        /原文[：:]\s*([\s\S]*?)(?=\n\n改写|$)/
-    ];
+    // 尝试不同的提取方法
     
-    for (const pattern of originalPatterns) {
-        const match = fullText.match(pattern);
-        if (match && match[1]) {
-            original = match[1].trim();
-            console.log("使用模式提取到原始文案，长度:", original.length);
+    // 方法1：使用分隔标记查找
+    for (const startMarker of originalMarkers) {
+        if (content.includes(startMarker)) {
+            console.log(`找到原始文案标记: "${startMarker}"`);
+            let startIndex = content.indexOf(startMarker) + startMarker.length;
+            let endIndex = content.length;
+            
+            // 查找下一个可能的结束标记
+            for (const endMarker of rewrittenMarkers) {
+                const markerIndex = content.indexOf(endMarker, startIndex);
+                if (markerIndex !== -1 && markerIndex < endIndex) {
+                    endIndex = markerIndex;
+                }
+            }
+            
+            original = content.substring(startIndex, endIndex).trim();
+            console.log(`提取的原始文案长度: ${original.length}`);
             break;
         }
     }
     
-    // 提取改写建议 - 支持多种可能的格式
-    const rewrittenPatterns = [
-        /爆款视频文案如下：\s*([\s\S]*?)(?=$)/,
-        /改写建议[：:]\s*([\s\S]*?)(?=$)/,
-        /改写[：:]\s*([\s\S]*?)(?=$)/
-    ];
+    // 方法2：如果方法1未找到原始文案，尝试查找可能的段落分隔
+    if (!original) {
+        console.log("使用段落分隔方法查找原始文案");
+        const paragraphs = content.split(/\n\s*\n|\r\n\s*\r\n/);
+        
+        // 查找可能包含原始文案的段落
+        for (let i = 0; i < paragraphs.length; i++) {
+            const paragraph = paragraphs[i].trim();
+            if (paragraph.length > 10) { // 忽略太短的段落
+                for (const marker of originalMarkers) {
+                    if (paragraph.includes(marker)) {
+                        original = paragraph.substring(paragraph.indexOf(marker) + marker.length).trim();
+                        console.log(`从段落中提取原始文案，长度: ${original.length}`);
+                        break;
+                    }
+                }
+                if (original) break;
+            }
+        }
+    }
     
-    for (const pattern of rewrittenPatterns) {
-        const match = fullText.match(pattern);
-        if (match && match[1]) {
-            rewritten = match[1].trim();
-            console.log("使用模式提取到改写建议，长度:", rewritten.length);
+    // 方法3：如果仍未找到，尝试使用正则表达式
+    if (!original) {
+        console.log("使用正则表达式查找原始文案");
+        const regex = new RegExp(`(${originalMarkers.join('|')})[\\s\\n]*(.*?)(?=(${rewrittenMarkers.join('|')})|$)`, 's');
+        const match = content.match(regex);
+        if (match && match[2]) {
+            original = match[2].trim();
+            console.log(`使用正则表达式提取原始文案，长度: ${original.length}`);
+        }
+    }
+    
+    // 提取改写建议
+    for (const startMarker of rewrittenMarkers) {
+        if (content.includes(startMarker)) {
+            console.log(`找到改写建议标记: "${startMarker}"`);
+            const startIndex = content.indexOf(startMarker) + startMarker.length;
+            rewritten = content.substring(startIndex).trim();
+            console.log(`提取的改写建议长度: ${rewritten.length}`);
             break;
         }
     }
     
-    // 如果没有找到内容，记录完整文本的一部分用于调试
-    if (!original || !rewritten) {
-        console.warn("未能提取全部内容，完整文本前200字符:", fullText.substring(0, 200));
+    // 方法2：如果方法1未找到改写建议，尝试查找可能的段落分隔
+    if (!rewritten) {
+        console.log("使用段落分隔方法查找改写建议");
+        const paragraphs = content.split(/\n\s*\n|\r\n\s*\r\n/);
+        
+        // 查找可能包含改写建议的段落
+        for (let i = 0; i < paragraphs.length; i++) {
+            const paragraph = paragraphs[i].trim();
+            if (paragraph.length > 10) { // 忽略太短的段落
+                for (const marker of rewrittenMarkers) {
+                    if (paragraph.includes(marker)) {
+                        rewritten = paragraph.substring(paragraph.indexOf(marker) + marker.length).trim();
+                        console.log(`从段落中提取改写建议，长度: ${rewritten.length}`);
+                        break;
+                    }
+                }
+                if (rewritten) break;
+            }
+        }
+    }
+    
+    // 方法3：如果仍未找到，尝试使用正则表达式
+    if (!rewritten) {
+        console.log("使用正则表达式查找改写建议");
+        const regex = new RegExp(`(${rewrittenMarkers.join('|')})[\\s\\n]*(.*)`, 's');
+        const match = content.match(regex);
+        if (match && match[2]) {
+            rewritten = match[2].trim();
+            console.log(`使用正则表达式提取改写建议，长度: ${rewritten.length}`);
+        }
+    }
+    
+    // 最后检查是否成功提取
+    if (!original) {
+        console.warn("未能提取到原始文案");
+        original = '未能提取到原始文案，请确认链接是否有效，或者尝试其他抖音视频链接。';
+    }
+    
+    if (!rewritten) {
+        console.warn("未能提取到改写建议");
+        rewritten = '未能提取到改写建议，请确认链接是否有效，或者尝试其他抖音视频链接。';
+    }
+    
+    // 如果内容太长，可能是提取错误，记录警告
+    if (original && original.length > 2000) {
+        console.warn("未能提取全部内容，完整文本前200字符: " + content.substring(0, 200));
     }
     
     return {
-        thinking: reasoning || '未找到模型思考过程',
-        original: original || '未找到原始文案',
-        rewritten: rewritten || '未找到改写建议'
+        thinking: thinking || '',
+        original: original,
+        rewritten: rewritten
     };
 }
 

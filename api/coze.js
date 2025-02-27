@@ -15,6 +15,7 @@ const parseBody = (req) => {
       try {
         resolve(JSON.parse(body));
       } catch (e) {
+        console.error('解析请求体失败:', e);
         resolve({});
       }
     });
@@ -42,6 +43,11 @@ module.exports = async (req, res) => {
   try {
     // 解析请求体
     const body = await parseBody(req);
+    console.log('收到API请求:', {
+      botId: body.bot_id,
+      userId: body.user_id,
+      stream: body.stream
+    });
     
     // 准备请求选项
     const options = {
@@ -54,6 +60,8 @@ module.exports = async (req, res) => {
       }
     };
 
+    console.log('发送请求到Coze API');
+    
     // 创建代理请求
     const proxyReq = https.request(options, (proxyRes) => {
       // 设置响应头
@@ -62,21 +70,49 @@ module.exports = async (req, res) => {
         res.setHeader(key, proxyRes.headers[key]);
       });
 
+      console.log(`收到来自Coze API的响应: ${proxyRes.statusCode}`);
+      
+      // 收集响应数据以便调试
+      let responseData = '';
+      
       // 流式传输响应
-      proxyRes.pipe(res);
+      proxyRes.on('data', (chunk) => {
+        responseData += chunk.toString();
+        res.write(chunk);
+      });
+      
+      proxyRes.on('end', () => {
+        console.log(`完整响应长度: ${responseData.length}`);
+        // 记录响应的前100个字符用于调试
+        if (responseData.length > 0) {
+          console.log(`响应前100个字符: ${responseData.substring(0, 100)}`);
+        }
+        res.end();
+      });
     });
 
     // 错误处理
     proxyReq.on('error', (error) => {
       console.error('代理请求错误:', error);
-      res.status(500).json({ error: '代理请求失败', message: error.message });
+      res.status(500).json({ 
+        error: '代理请求失败', 
+        message: error.message,
+        stack: error.stack
+      });
     });
 
     // 发送请求体
-    proxyReq.write(JSON.stringify(body));
+    const requestBody = JSON.stringify(body);
+    proxyReq.write(requestBody);
     proxyReq.end();
+    
+    console.log('请求已发送到Coze API');
   } catch (error) {
     console.error('服务器错误:', error);
-    res.status(500).json({ error: '服务器错误', message: error.message });
+    res.status(500).json({ 
+      error: '服务器错误', 
+      message: error.message,
+      stack: error.stack
+    });
   }
 };
