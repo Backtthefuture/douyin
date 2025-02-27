@@ -245,6 +245,13 @@ footer a:hover {
     text-decoration: underline;
 }
 
+.powered-by {
+    margin-top: 0.5rem;
+    font-weight: 600;
+    color: var(--secondary-color);
+    font-size: 1rem;
+}
+
 /* 响应式设计 */
 @media (max-width: 768px) {
     .container {
