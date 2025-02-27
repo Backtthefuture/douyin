@@ -41,6 +41,35 @@ document.addEventListener('DOMContentLoaded', () => {
             copyContent(targetId);
         });
     });
+    
+    // 在页面加载时记录环境信息
+    console.log('页面加载完成');
+    console.log('当前环境:', {
+        hostname: window.location.hostname,
+        protocol: window.location.protocol,
+        pathname: window.location.pathname,
+        apiUrl: API_URL,
+        botId: BOT_ID,
+        debugMode: DEBUG_MODE
+    });
+    
+    // 如果是调试模式，显示环境信息
+    if (DEBUG_MODE) {
+        const debugSection = document.getElementById('debugSection');
+        if (debugSection) {
+            debugSection.style.display = 'block';
+            const envInfo = document.createElement('div');
+            envInfo.className = 'debug-info';
+            envInfo.innerHTML = `
+                <h4>环境信息</h4>
+                <p>主机名: ${window.location.hostname}</p>
+                <p>协议: ${window.location.protocol}</p>
+                <p>API地址: ${API_URL}</p>
+                <p>Bot ID: ${BOT_ID}</p>
+            `;
+            debugSection.prepend(envInfo);
+        }
+    }
 });
 
 // 处理分析按钮点击

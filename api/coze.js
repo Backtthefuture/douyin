@@ -132,6 +132,10 @@ module.exports = async (req, res) => {
     proxyReq.end();
     
     console.log('请求已发送到Coze API');
+    
+    // 记录环境变量信息（不包含敏感信息）
+    console.log('Node环境:', process.env.NODE_ENV);
+    console.log('Vercel环境:', process.env.VERCEL ? '是' : '否');
   } catch (error) {
     console.error('服务器错误:', error);
     res.status(500).json({ 

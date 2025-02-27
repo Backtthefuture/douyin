@@ -64,10 +64,14 @@
                 </div>
                 
                 <!-- 调试信息区域 -->
-                <div id="apiResponseBox" class="debug-box" style="display: none;">
-                    <h4>API响应调试信息</h4>
-                    <p class="debug-note">此区域仅在调试模式下显示</p>
-                </div>
+                <section id="debugSection" class="result-section" style="display: none;">
+                    <h3>调试信息</h3>
+                    <div class="debug-container">
+                        <h4>API响应原始内容</h4>
+                        <pre id="apiResponseDebug" class="debug-content"></pre>
+                    </div>
+                    <p class="note">注意：此区域仅在调试模式下显示，用于开发人员排查问题。</p>
+                </section>
             </section>
         </main>
 

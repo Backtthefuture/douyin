@@ -257,6 +257,45 @@ button:hover {
     margin-bottom: 1rem;
 }
 
+#debugSection {
+    margin-top: 30px;
+    border-top: 1px dashed #ccc;
+    padding-top: 20px;
+}
+
+.debug-container {
+    background-color: #f8f8f8;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.debug-content {
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-family: monospace;
+    font-size: 12px;
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 3px;
+}
+
+.debug-info {
+    background-color: #e6f7ff;
+    border: 1px solid #91d5ff;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.note {
+    font-size: 12px;
+    color: #888;
+    font-style: italic;
+}
+
 /* 页脚样式 */
 footer {
     text-align: center;
