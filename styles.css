@@ -228,6 +228,35 @@ button:hover {
     transform: none;
 }
 
+/* 调试区域样式 */
+.debug-box {
+    margin-top: 2rem;
+    padding: 1rem;
+    background-color: #f8f8f8;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-family: monospace;
+    overflow-x: auto;
+}
+
+.debug-box h4 {
+    color: #e74c3c;
+    margin-bottom: 0.5rem;
+}
+
+.debug-box pre {
+    white-space: pre-wrap;
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.debug-note {
+    font-style: italic;
+    color: #888;
+    font-size: 0.8rem;
+    margin-bottom: 1rem;
+}
+
 /* 页脚样式 */
 footer {
     text-align: center;

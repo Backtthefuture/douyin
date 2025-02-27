@@ -12,7 +12,8 @@ const copyBtns = document.querySelectorAll('.copy-btn');
 
 // API配置
 const API_URL = "/api/coze"; // 使用相对路径，会自动适应部署环境
-const BOT_ID = "bot_8e2f0e4c-3d5f-4b7e-9e1c-e5d6d9f4b6a8";
+const BOT_ID = "7475718510476509221";
+const DEBUG_MODE = true; // 调试模式开关
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -85,6 +86,12 @@ async function analyzeVideo(videoUrl) {
         loadingSection.style.display = 'block';
         resultSection.style.display = 'none';
         
+        console.log("发送API请求:", {
+            url: API_URL,
+            botId: BOT_ID,
+            videoUrl: videoUrl
+        });
+        
         const response = await fetch(API_URL, {
             method: 'POST',
             headers: {
@@ -93,8 +100,12 @@ async function analyzeVideo(videoUrl) {
             body: JSON.stringify(requestData)
         });
 
+        console.log("API响应状态:", response.status, response.statusText);
+        
         if (!response.ok) {
-            throw new Error(`API请求失败: ${response.status}`);
+            const errorText = await response.text();
+            console.error("API错误响应:", errorText);
+            throw new Error(`API请求失败: ${response.status} - ${errorText || response.statusText}`);
         }
 
         // 处理流式响应
@@ -118,6 +129,8 @@ async function analyzeVideo(videoUrl) {
         result += decoder.decode();
         
         console.log("API响应长度:", result.length);
+        console.log("API响应前100个字符:", result.substring(0, 100));
+        
         return parseApiResponse(result);
     } catch (error) {
         console.error('API请求错误:', error);
@@ -151,19 +164,27 @@ async function analyzeVideo(videoUrl) {
 
 // 解析API响应
 function parseApiResponse(responseText) {
+    console.log("开始解析API响应...");
+    
     // 分离响应中的数据行
     const dataLines = responseText.split('\n').filter(line => line.trim().startsWith('data:'));
+    console.log(`找到 ${dataLines.length} 行数据`);
     
     let fullResponse = '';
     let reasoning = '';
     let content = '';
     
     // 处理所有数据行
-    dataLines.forEach(line => {
+    dataLines.forEach((line, index) => {
         try {
             const jsonStr = line.substring(5).trim(); // 移除 'data:' 前缀
             if (jsonStr) {
                 const data = JSON.parse(jsonStr);
+                
+                // 记录每个数据块的类型
+                if (index < 3 || index > dataLines.length - 3) {
+                    console.log(`数据块 #${index} 类型:`, data.type, "内容长度:", data.content ? data.content.length : 0);
+                }
                 
                 // 收集模型思考内容
                 if (data.reasoning_content) {
@@ -176,17 +197,23 @@ function parseApiResponse(responseText) {
                 }
                 
                 // 如果是完整的最终回答
-                if (data.content && data.content.includes('原视频文案') && data.content.includes('爆款视频文案')) {
+                if (data.content && (
+                    data.content.includes('原视频文案') && data.content.includes('爆款视频文案') ||
+                    data.content.includes('原始文案') && data.content.includes('改写建议')
+                )) {
                     fullResponse = data.content;
+                    console.log("找到完整回答，长度:", fullResponse.length);
                 }
             }
         } catch (e) {
-            console.warn('解析响应行失败:', e);
+            console.warn(`解析响应行 #${index} 失败:`, e);
+            console.warn("问题行内容:", line.substring(0, 100) + "...");
         }
     });
     
     // 如果找到了完整回答，使用它；否则使用累积的内容
     const finalContent = fullResponse || content;
+    console.log("最终内容长度:", finalContent.length);
     
     // 提取内容部分
     return extractContentParts(finalContent, reasoning);
@@ -194,20 +221,47 @@ function parseApiResponse(responseText) {
 
 // 提取内容部分
 function extractContentParts(fullText, reasoning) {
+    console.log("提取内容部分...");
+    
     // 尝试从完整响应中提取原始文案和改写建议
     let original = '';
     let rewritten = '';
     
-    // 提取原始文案
-    const originalMatch = fullText.match(/原视频文案如下：\s*([\s\S]*?)(?=\n\n爆款视频文案|$)/);
-    if (originalMatch && originalMatch[1]) {
-        original = originalMatch[1].trim();
+    // 提取原始文案 - 支持多种可能的格式
+    const originalPatterns = [
+        /原视频文案如下：\s*([\s\S]*?)(?=\n\n爆款视频文案|$)/,
+        /原始文案[：:]\s*([\s\S]*?)(?=\n\n改写建议|$)/,
+        /原文[：:]\s*([\s\S]*?)(?=\n\n改写|$)/
+    ];
+    
+    for (const pattern of originalPatterns) {
+        const match = fullText.match(pattern);
+        if (match && match[1]) {
+            original = match[1].trim();
+            console.log("使用模式提取到原始文案，长度:", original.length);
+            break;
+        }
     }
     
-    // 提取改写建议
-    const rewrittenMatch = fullText.match(/爆款视频文案如下：\s*([\s\S]*?)(?=$)/);
-    if (rewrittenMatch && rewrittenMatch[1]) {
-        rewritten = rewrittenMatch[1].trim();
+    // 提取改写建议 - 支持多种可能的格式
+    const rewrittenPatterns = [
+        /爆款视频文案如下：\s*([\s\S]*?)(?=$)/,
+        /改写建议[：:]\s*([\s\S]*?)(?=$)/,
+        /改写[：:]\s*([\s\S]*?)(?=$)/
+    ];
+    
+    for (const pattern of rewrittenPatterns) {
+        const match = fullText.match(pattern);
+        if (match && match[1]) {
+            rewritten = match[1].trim();
+            console.log("使用模式提取到改写建议，长度:", rewritten.length);
+            break;
+        }
+    }
+    
+    // 如果没有找到内容，记录完整文本的一部分用于调试
+    if (!original || !rewritten) {
+        console.warn("未能提取全部内容，完整文本前200字符:", fullText.substring(0, 200));
     }
     
     return {
@@ -245,6 +299,13 @@ function displayResults(result) {
     // 如果没有提取到原始文案，自动切换到模型思考过程标签，帮助用户理解
     if (result.original === '未找到原始文案') {
         switchTab('modelThinking');
+    }
+    
+    // 调试模式下显示API响应
+    if (DEBUG_MODE) {
+        const apiResponseBox = document.getElementById('apiResponseBox');
+        apiResponseBox.innerHTML = `<pre>${result.thinking}</pre>`;
+        apiResponseBox.style.display = 'block';
     }
 }
 
